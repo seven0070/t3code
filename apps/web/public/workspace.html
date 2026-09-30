@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>J.A.R.V.I.S. — Agentic Workspace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                bg: "#0c0d0e",
+                sidebar: "#111215",
+                surface: "#17181c",
+                elevated: "#1e2025",
+                border: "rgba(255,255,255,0.08)",
+                borderHover: "rgba(255,255,255,0.18)",
+                cyan: "#06b6d4",
+                blue: "#3b82f6",
+                text: "#f1f5f9",
+                muted: "#94a3b8",
+              },
+            },
+            fontFamily: {
+              sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+              mono: ["JetBrains Mono", "Fira Code", "monospace"],
+            },
+          },
+        },
+      };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      code,
+      pre,
+      .font-mono {
+        font-family: "JetBrains Mono", monospace;
+      }
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.22);
+      }
+
+      .jarvis-glow {
+        box-shadow:
+          0 0 20px 4px rgba(6, 182, 212, 0.4),
+          inset 0 0 12px 2px rgba(6, 182, 212, 0.3);
+      }
+      .jarvis-glow-active {
+        box-shadow:
+          0 0 30px 8px rgba(59, 130, 246, 0.6),
+          inset 0 0 16px 4px rgba(6, 182, 212, 0.5);
+      }
+    </style>
+  </head>
+  <body
+    class="bg-[#0c0d0e] text-[#f1f5f9] h-screen w-screen overflow-hidden flex antialiased select-none"
+  >
+    <!-- ======================================================== -->
+    <!-- 1. CATEGORIZED SIDEBAR NAVIGATION                        -->
+    <!-- ======================================================== -->
+    <aside
+      id="sidebar"
+      class="w-64 bg-[#111215] border-r border-[rgba(255,255,255,0.07)] flex flex-col justify-between p-3 shrink-0 transition-all duration-300 relative z-30"
+    >
+      <div class="flex flex-col h-full overflow-hidden">
+        <!-- Workspace Brand Header -->
+        <div class="flex items-center justify-between px-2 py-2 mb-3">
+          <div class="flex items-center gap-2.5">
+            <div
+              class="w-7 h-7 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20 font-mono font-bold text-xs"
+            >
+              J
+            </div>
+            <div>
+              <div class="text-xs font-semibold tracking-wide text-white flex items-center gap-1.5">
+                <span>J.A.R.V.I.S.</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+              </div>
+              <div class="text-[10px] text-[#94a3b8] font-mono">Autonomous Core</div>
+            </div>
+          </div>
+          <button
+            id="toggle-sidebar-btn"
+            class="p-1.5 rounded-md hover:bg-[#1a1c22] text-[#94a3b8] hover:text-white transition"
+            title="Collapse sidebar"
+          >
+            <i data-lucide="panel-left-close" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Quick Action: New Session -->
+        <div class="px-1 mb-4">
+          <button
+            id="new-session-btn"
+            class="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-[#1a1c22] hover:bg-[#22252c] border border-[rgba(255,255,255,0.06)] hover:border-cyan-500/30 text-white text-xs font-medium transition group"
+          >
+            <span class="flex items-center gap-2">
+              <i
+                data-lucide="plus"
+                class="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-90 transition-transform duration-200"
+              ></i>
+              <span>New Task Session</span>
+            </span>
+            <kbd class="text-[9px] px-1.5 py-0.5 rounded bg-black/40 text-[#94a3b8] font-mono"
+              >⌘N</kbd
+            >
+          </button>
+        </div>
+
+        <!-- Categorized Menu Navigation Tree -->
+        <div class="flex-1 overflow-y-auto space-y-4 px-1 text-xs pr-1">
+          <!-- CATEGORY 1: WORKSPACE & ACTIVE WORK -->
+          <div>
+            <div
+              class="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-[#64748b] px-2 py-1"
+            >
+              <span>Workspace</span>
+              <span class="text-[9px] text-cyan-400 font-mono">Active</span>
+            </div>
+            <div class="space-y-0.5 mt-0.5">
+              <button
+                class="menu-item active w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-300 font-medium border border-cyan-500/20 text-left transition"
+                data-view="chat-view"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="message-square" class="w-3.5 h-3.5 text-cyan-400 shrink-0"></i>
+                  <span class="truncate">Live Conversation</span>
+                </span>
+                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+              </button>
+              <button
+                class="menu-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#1a1c22] text-[#94a3b8] hover:text-white text-left transition"
+                data-view="canvas-view"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="file-code-2" class="w-3.5 h-3.5 shrink-0"></i>
+                  <span class="truncate">Work Scratchpad</span>
+                </span>
+              </button>
+              <button
+                class="menu-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#1a1c22] text-[#94a3b8] hover:text-white text-left transition"
+                data-view="terminal-view"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="terminal" class="w-3.5 h-3.5 shrink-0"></i>
+                  <span class="truncate">Execution Logs</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <!-- CATEGORY 2: INTELLIGENCE & AGENTS -->
+          <div>
+            <div
+              class="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-[#64748b] px-2 py-1"
+            >
+              <span>Intelligence & Agents</span>
+            </div>
+            <div class="space-y-0.5 mt-0.5">
+              <button
+                class="menu-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#1a1c22] text-[#94a3b8] hover:text-white text-left transition"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="cpu" class="w-3.5 h-3.5 shrink-0 text-blue-400"></i>
+                  <span class="truncate">Model Optimizer</span>
+                </span>
+                <span class="text-[9px] px-1 rounded bg-[#22252c] text-[#94a3b8]">Quantize</span>
+              </button>
+              <button
+                class="menu-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#1a1c22] text-[#94a3b8] hover:text-white text-left transition"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="shield-check" class="w-3.5 h-3.5 shrink-0 text-emerald-400"></i>
+                  <span class="truncate">Code Reviewer</span>
+                </span>
+              </button>
+              <button
+                class="menu-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#1a1c22] text-[#94a3b8] hover:text-white text-left transition"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="sparkles" class="w-3.5 h-3.5 shrink-0 text-amber-400"></i>
+                  <span class="truncate">Auto Refactor</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <!-- CATEGORY 3: MEMORY & KNOWLEDGE -->
+          <div>
+            <div
+              class="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-[#64748b] px-2 py-1"
+            >
+              <span>Memory & Context</span>
+            </div>
+            <div class="space-y-0.5 mt-0.5">
+              <button
+                class="menu-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#1a1c22] text-[#94a3b8] hover:text-white text-left transition"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="database" class="w-3.5 h-3.5 shrink-0 text-purple-400"></i>
+                  <span class="truncate">Persistent Diary</span>
+                </span>
+                <span class="text-[9px] text-[#64748b] font-mono">14 KB</span>
+              </button>
+              <button
+                class="menu-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#1a1c22] text-[#94a3b8] hover:text-white text-left transition"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="git-commit" class="w-3.5 h-3.5 shrink-0 text-indigo-400"></i>
+                  <span class="truncate">State Checkpoints</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <!-- CATEGORY 4: SYSTEM & PREFERENCES -->
+          <div>
+            <div
+              class="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-[#64748b] px-2 py-1"
+            >
+              <span>System</span>
+            </div>
+            <div class="space-y-0.5 mt-0.5">
+              <button
+                class="menu-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#1a1c22] text-[#94a3b8] hover:text-white text-left transition"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="sliders" class="w-3.5 h-3.5 shrink-0"></i>
+                  <span class="truncate">Agent Parameters</span>
+                </span>
+              </button>
+              <button
+                class="menu-item w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#1a1c22] text-[#94a3b8] hover:text-white text-left transition"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="settings" class="w-3.5 h-3.5 shrink-0"></i>
+                  <span class="truncate">Settings</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar Footer Status -->
+        <div class="pt-3 border-t border-[rgba(255,255,255,0.07)]">
+          <div
+            class="flex items-center justify-between px-2 py-1.5 rounded-lg bg-[#17181c] border border-[rgba(255,255,255,0.05)] text-[11px]"
+          >
+            <span class="flex items-center gap-2 text-[#94a3b8]">
+              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+              <span>Local Engine</span>
+            </span>
+            <span class="font-mono text-[10px] text-cyan-400">Online</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ======================================================== -->
+    <!-- 2. MAIN WORKSPACE CONTENT CONTAINER                     -->
+    <!-- ======================================================== -->
+    <main class="flex-1 flex flex-col h-full bg-[#0c0d0e] relative overflow-hidden">
+      <!-- TOP TOOLBAR -->
+      <header
+        class="h-14 border-b border-[rgba(255,255,255,0.07)] px-4 flex items-center justify-between shrink-0 bg-[#111215]/80 backdrop-blur-md z-20"
+      >
+        <!-- Left: Breadcrumb & View Toggle -->
+        <div class="flex items-center gap-3">
+          <button
+            id="open-sidebar-btn"
+            class="p-1.5 rounded-md hover:bg-[#1a1c22] text-[#94a3b8] hover:text-white transition hidden"
+            title="Expand sidebar"
+          >
+            <i data-lucide="panel-left" class="w-4 h-4"></i>
+          </button>
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-[#64748b]">Session</span>
+            <span class="text-[#64748b]">/</span>
+            <span class="font-semibold text-white tracking-wide">Workspace Root</span>
+            <span
+              class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono"
+              >Live</span
+            >
+          </div>
+        </div>
+
+        <!-- Right: Voice Mode Option Button & J.A.R.V.I.S. Circular Widget -->
+        <div class="flex items-center gap-3">
+          <!-- VOICE MODE OPTION BUTTON -->
+          <button
+            id="voice-mode-toggle-btn"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1a1c22] hover:bg-[#22252c] text-white border border-[rgba(255,255,255,0.1)] hover:border-cyan-500/40 text-xs font-medium transition shadow-sm group"
+          >
+            <i
+              id="voice-btn-icon"
+              data-lucide="mic"
+              class="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform"
+            ></i>
+            <span id="voice-btn-label">Voice Mode: Off</span>
+          </button>
+
+          <div class="h-5 w-px bg-[rgba(255,255,255,0.1)]"></div>
+
+          <!-- J.A.R.V.I.S. SMALL CIRCULAR AVATAR WIDGET -->
+          <div
+            class="relative group cursor-pointer"
+            id="jarvis-circular-widget"
+            title="J.A.R.V.I.S. Autonomous Voice Avatar • Click to trigger conversation"
+          >
+            <div
+              class="w-10 h-10 rounded-full p-0.5 bg-gradient-to-tr from-cyan-500 via-blue-500 to-indigo-600 transition-all duration-300 group-hover:scale-105 jarvis-glow relative flex items-center justify-center"
+            >
+              <canvas
+                id="jarvis-avatar-canvas"
+                width="36"
+                height="36"
+                class="rounded-full bg-[#0c0d0e] z-10"
+              ></canvas>
+              <span
+                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-cyan-400 ring-2 ring-[#111215]"
+              ></span>
+            </div>
+
+            <!-- Micro Tooltip Tag -->
+            <div
+              class="absolute right-0 top-12 hidden group-hover:flex flex-col items-end pointer-events-none z-50"
+            >
+              <div
+                class="bg-[#17181c] border border-cyan-500/30 text-white text-[11px] px-2.5 py-1 rounded-lg shadow-xl font-mono whitespace-nowrap flex items-center gap-1.5"
+              >
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                <span>J.A.R.V.I.S. Audio Widget</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- WORKSPACE SPLIT: BLANK WORK CANVAS & ACTUAL CONVERSATION FEED -->
+      <div class="flex-1 flex overflow-hidden">
+        <!-- LEFT / CENTER: CONVERSATION LANE -->
+        <section
+          class="flex-1 flex flex-col h-full border-r border-[rgba(255,255,255,0.06)] relative bg-[#0c0d0e]"
+        >
+          <!-- Live Chat Message Viewport -->
+          <div id="chat-messages" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+            <!-- Blank Workspace Initial State Banner -->
+            <div
+              id="blank-workspace-notice"
+              class="flex flex-col items-center justify-center h-full text-center text-[#64748b] space-y-3"
+            >
+              <div
+                class="w-12 h-12 rounded-2xl bg-[#17181c] border border-[rgba(255,255,255,0.06)] flex items-center justify-center text-cyan-400"
+              >
+                <i data-lucide="terminal" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <h2 class="text-sm font-semibold text-white tracking-wide">
+                  Workspace Ready for Work & Conversation
+                </h2>
+                <p class="text-xs text-[#64748b] mt-1 max-w-sm">
+                  Enter your instructions, code queries, or commands below. Conversations and active
+                  operations will stream here.
+                </p>
+              </div>
+              <div class="flex items-center gap-2 pt-2">
+                <button
+                  class="quick-cmd px-2.5 py-1 rounded-md bg-[#17181c] hover:bg-[#202228] text-[11px] text-[#94a3b8] hover:text-white border border-[rgba(255,255,255,0.06)] transition font-mono"
+                  data-cmd="/audit"
+                >
+                  /audit
+                </button>
+                <button
+                  class="quick-cmd px-2.5 py-1 rounded-md bg-[#17181c] hover:bg-[#202228] text-[11px] text-[#94a3b8] hover:text-white border border-[rgba(255,255,255,0.06)] transition font-mono"
+                  data-cmd="/refactor"
+                >
+                  /refactor
+                </button>
+                <button
+                  class="quick-cmd px-2.5 py-1 rounded-md bg-[#17181c] hover:bg-[#202228] text-[11px] text-[#94a3b8] hover:text-white border border-[rgba(255,255,255,0.06)] transition font-mono"
+                  data-cmd="/build"
+                >
+                  /build
+                </button>
+              </div>
+            </div>
+
+            <!-- Dynamic Chat Stream List (Appended at runtime) -->
+            <div id="active-chat-stream" class="space-y-4 hidden"></div>
+          </div>
+
+          <!-- Chat Input Capsule -->
+          <div class="p-4 bg-[#0c0d0e] border-t border-[rgba(255,255,255,0.06)]">
+            <div
+              class="bg-[#17181c] rounded-2xl border border-[rgba(255,255,255,0.08)] focus-within:border-cyan-500/50 p-2 transition shadow-xl"
+            >
+              <textarea
+                id="work-input"
+                rows="1"
+                placeholder="Instruct J.A.R.V.I.S. or write command..."
+                class="w-full bg-transparent px-3 py-1.5 text-xs text-white placeholder-[#64748b] resize-none outline-none leading-relaxed font-sans max-h-36"
+              ></textarea>
+
+              <div
+                class="flex items-center justify-between pt-1 border-t border-[rgba(255,255,255,0.04)] mt-1"
+              >
+                <div class="flex items-center gap-1.5">
+                  <button
+                    class="p-1.5 rounded-lg text-[#64748b] hover:text-white hover:bg-[#22252c] transition"
+                    title="Attach file"
+                  >
+                    <i data-lucide="paperclip" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <button
+                    class="p-1.5 rounded-lg text-[#64748b] hover:text-white hover:bg-[#22252c] transition"
+                    title="Code snippet"
+                  >
+                    <i data-lucide="code" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <span class="text-[10px] text-[#475569] font-mono pl-1"
+                    >Shift+Enter for newline</span
+                  >
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <button
+                    id="send-work-btn"
+                    class="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white flex items-center gap-1.5 text-xs font-medium transition shadow-md shadow-cyan-600/30 disabled:opacity-40 disabled:bg-[#22252c] disabled:text-[#64748b]"
+                    disabled
+                  >
+                    <span>Send</span>
+                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT: ACTIVE WORK CANVAS & SCRATCHPAD -->
+        <section class="w-96 hidden lg:flex flex-col h-full bg-[#111215]">
+          <!-- Canvas Tab Bar -->
+          <div
+            class="h-10 border-b border-[rgba(255,255,255,0.06)] px-3 flex items-center justify-between text-xs"
+          >
+            <div class="flex items-center gap-1">
+              <button
+                class="px-2.5 py-1 rounded bg-[#17181c] text-white font-medium border border-[rgba(255,255,255,0.06)]"
+              >
+                Work Scratchpad
+              </button>
+              <button class="px-2.5 py-1 rounded text-[#64748b] hover:text-[#94a3b8] transition">
+                Terminal
+              </button>
+            </div>
+            <button
+              id="clear-scratchpad-btn"
+              class="p-1 text-[#64748b] hover:text-white transition"
+              title="Clear Scratchpad"
+            >
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+
+          <!-- Scratchpad Content Area -->
+          <div class="flex-1 p-3 flex flex-col">
+            <textarea
+              id="scratchpad"
+              class="w-full flex-1 bg-[#17181c] border border-[rgba(255,255,255,0.06)] rounded-xl p-3 text-xs font-mono text-[#cbd5e1] placeholder-[#475569] outline-none resize-none leading-relaxed"
+              placeholder="// Active work notes, code drafts, and outputs will persist here..."
+            ></textarea>
+
+            <div
+              class="flex items-center justify-between pt-2 text-[10px] text-[#64748b] font-mono"
+            >
+              <span>Buffer: Clean</span>
+              <span>UTF-8</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- ======================================================== -->
+    <!-- 3. VOICE MODE COMPACT OVERLAY BANNER                     -->
+    <!-- ======================================================== -->
+    <div
+      id="voice-banner"
+      class="fixed bottom-6 right-6 w-80 bg-[#17181c] border border-cyan-500/40 rounded-2xl shadow-2xl p-4 transition-all duration-300 transform translate-y-24 opacity-0 pointer-events-none z-50"
+    >
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+          <span class="text-xs font-semibold text-white">J.A.R.V.I.S. Audio Channel</span>
+        </div>
+        <button
+          id="close-voice-banner"
+          class="p-1 rounded-md text-[#64748b] hover:text-white transition"
+        >
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-3 py-2">
+        <div
+          class="w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-cyan-400 to-blue-500 jarvis-glow flex items-center justify-center shrink-0"
+        >
+          <canvas
+            id="voice-wave-canvas"
+            width="44"
+            height="44"
+            class="rounded-full bg-[#0c0d0e]"
+          ></canvas>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div id="voice-banner-state" class="text-xs font-medium text-cyan-300">
+            Listening to voice...
+          </div>
+          <div class="text-[11px] text-[#94a3b8] truncate font-mono">Acoustic feed active</div>
+        </div>
+      </div>
+
+      <div
+        class="flex items-center justify-between pt-2 border-t border-[rgba(255,255,255,0.06)] text-xs mt-2"
+      >
+        <button
+          id="voice-mute-toggle"
+          class="flex items-center gap-1.5 text-[#94a3b8] hover:text-white transition"
+        >
+          <i data-lucide="mic" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span id="voice-mute-label">Mute</span>
+        </button>
+        <button id="voice-end-btn" class="text-rose-400 hover:text-rose-300 font-medium transition">
+          End Call
+        </button>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- 4. LOGIC & CANVAS VISUALIZER CODE                        -->
+    <!-- ======================================================== -->
+    <script>
+      lucide.createIcons();
+
+      // Elements
+      const sidebar = document.getElementById("sidebar");
+      const toggleSidebarBtn = document.getElementById("toggle-sidebar-btn");
+      const openSidebarBtn = document.getElementById("open-sidebar-btn");
+      const workInput = document.getElementById("work-input");
+      const sendWorkBtn = document.getElementById("send-work-btn");
+      const blankWorkspaceNotice = document.getElementById("blank-workspace-notice");
+      const activeChatStream = document.getElementById("active-chat-stream");
+      const chatMessages = document.getElementById("chat-messages");
+      const quickCmdButtons = document.querySelectorAll(".quick-cmd");
+      const newSessionBtn = document.getElementById("new-session-btn");
+      const scratchpad = document.getElementById("scratchpad");
+      const clearScratchpadBtn = document.getElementById("clear-scratchpad-btn");
+
+      // Voice Elements
+      const voiceModeToggleBtn = document.getElementById("voice-mode-toggle-btn");
+      const voiceBtnIcon = document.getElementById("voice-btn-icon");
+      const voiceBtnLabel = document.getElementById("voice-btn-label");
+      const jarvisCircularWidget = document.getElementById("jarvis-circular-widget");
+      const jarvisAvatarCanvas = document.getElementById("jarvis-avatar-canvas");
+      const avatarCtx = jarvisAvatarCanvas.getContext("2d");
+      const voiceBanner = document.getElementById("voice-banner");
+      const closeVoiceBanner = document.getElementById("close-voice-banner");
+      const voiceWaveCanvas = document.getElementById("voice-wave-canvas");
+      const waveCtx = voiceWaveCanvas.getContext("2d");
+      const voiceBannerState = document.getElementById("voice-banner-state");
+      const voiceMuteToggle = document.getElementById("voice-mute-toggle");
+      const voiceMuteLabel = document.getElementById("voice-mute-label");
+      const voiceEndBtn = document.getElementById("voice-end-btn");
+
+      let voiceModeActive = false;
+      let isMuted = false;
+
+      // Sidebar Toggling
+      toggleSidebarBtn.addEventListener("click", () => {
+        sidebar.classList.add("-ml-64");
+        openSidebarBtn.classList.remove("hidden");
+      });
+      openSidebarBtn.addEventListener("click", () => {
+        sidebar.classList.remove("-ml-64");
+        openSidebarBtn.classList.add("hidden");
+      });
+
+      // Clear Scratchpad
+      clearScratchpadBtn.addEventListener("click", () => {
+        scratchpad.value = "";
+      });
+
+      // Input Handling
+      workInput.addEventListener("input", () => {
+        workInput.style.height = "auto";
+        workInput.style.height = Math.min(workInput.scrollHeight, 140) + "px";
+        sendWorkBtn.disabled = workInput.value.trim() === "";
+      });
+
+      // Reset / New Session
+      newSessionBtn.addEventListener("click", () => {
+        activeChatStream.innerHTML = "";
+        activeChatStream.classList.add("hidden");
+        blankWorkspaceNotice.classList.remove("hidden");
+        workInput.value = "";
+        sendWorkBtn.disabled = true;
+      });
+
+      // Send Conversation Item
+      function postMessage(content) {
+        if (!content) return;
+
+        blankWorkspaceNotice.classList.add("hidden");
+        activeChatStream.classList.remove("hidden");
+
+        // User Message Bubble
+        const userBubble = document.createElement("div");
+        userBubble.className = "flex justify-end";
+        userBubble.innerHTML = `
+        <div class="bg-[#1e2025] border border-[rgba(255,255,255,0.08)] text-white px-3.5 py-2.5 rounded-xl max-w-[85%] text-xs leading-relaxed">
+          ${content}
+        </div>
+      `;
+        activeChatStream.appendChild(userBubble);
+
+        workInput.value = "";
+        workInput.style.height = "auto";
+        sendWorkBtn.disabled = true;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // J.A.R.V.I.S. Response
+        setTimeout(() => {
+          const jarvisBubble = document.createElement("div");
+          jarvisBubble.className = "flex items-start gap-3";
+          jarvisBubble.innerHTML = `
+          <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-[11px] font-mono shrink-0 shadow-md shadow-cyan-500/20">
+            J
+          </div>
+          <div class="flex-1 bg-[#17181c] border border-[rgba(255,255,255,0.06)] rounded-xl p-3.5 text-xs text-[#cbd5e1] space-y-2">
+            <div class="flex items-center justify-between text-[11px] text-[#64748b] border-b border-[rgba(255,255,255,0.04)] pb-1.5">
+              <span class="text-cyan-400 font-mono">J.A.R.V.I.S. Response</span>
+              <span class="font-mono">Task Verified</span>
+            </div>
+            <div class="leading-relaxed">
+              Acknowledged. I'm executing the instructions for <strong>"${content}"</strong> within your workspace.
+            </div>
+            <div class="bg-[#0c0d0e] rounded-lg p-2.5 font-mono text-[11px] text-cyan-300 border border-[rgba(255,255,255,0.04)]">
+              // Execution status: active\n[jarvis-core] workspace buffer synchronized.
+            </div>
+          </div>
+        `;
+          activeChatStream.appendChild(jarvisBubble);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+
+          // Also update scratchpad with work log
+          scratchpad.value += `\n[${new Date().toLocaleTimeString()}] Task: ${content}\n> J.A.R.V.I.S. completed execution.\n`;
+        }, 400);
+      }
+
+      sendWorkBtn.addEventListener("click", () => postMessage(workInput.value.trim()));
+      workInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          postMessage(workInput.value.trim());
+        }
+      });
+
+      quickCmdButtons.forEach((btn) => {
+        btn.addEventListener("click", () => postMessage(btn.getAttribute("data-cmd")));
+      });
+
+      // Voice Mode Toggle
+      function toggleVoiceMode() {
+        voiceModeActive = !voiceModeActive;
+        if (voiceModeActive) {
+          voiceBtnIcon.classList.replace("text-cyan-400", "text-emerald-400");
+          voiceBtnLabel.innerText = "Voice Mode: On";
+          voiceBanner.classList.remove("translate-y-24", "opacity-0", "pointer-events-none");
+          voiceBannerState.innerText = "Listening to voice...";
+        } else {
+          voiceBtnIcon.classList.replace("text-emerald-400", "text-cyan-400");
+          voiceBtnLabel.innerText = "Voice Mode: Off";
+          voiceBanner.classList.add("translate-y-24", "opacity-0", "pointer-events-none");
+        }
+      }
+
+      voiceModeToggleBtn.addEventListener("click", toggleVoiceMode);
+      jarvisCircularWidget.addEventListener("click", toggleVoiceMode);
+      closeVoiceBanner.addEventListener("click", toggleVoiceMode);
+      voiceEndBtn.addEventListener("click", toggleVoiceMode);
+
+      voiceMuteToggle.addEventListener("click", () => {
+        isMuted = !isMuted;
+        if (isMuted) {
+          voiceMuteLabel.innerText = "Unmute";
+          voiceBannerState.innerText = "Microphone Muted";
+        } else {
+          voiceMuteLabel.innerText = "Mute";
+          voiceBannerState.innerText = "Listening to voice...";
+        }
+      });
+
+      // Small Circular J.A.R.V.I.S. Avatar Canvas Renderer
+      let avatarAngle = 0;
+      function renderAvatarWidget() {
+        avatarCtx.clearRect(0, 0, jarvisAvatarCanvas.width, jarvisAvatarCanvas.height);
+        const cx = jarvisAvatarCanvas.width / 2;
+        const cy = jarvisAvatarCanvas.height / 2;
+        avatarAngle += voiceModeActive ? 0.06 : 0.02;
+
+        // Draw concentric neon rings with dynamic sine modulation
+        for (let r = 14; r >= 5; r -= 4) {
+          avatarCtx.beginPath();
+          const pts = 24;
+          for (let i = 0; i <= pts; i++) {
+            const theta = (i / pts) * Math.PI * 2;
+            const deform = voiceModeActive
+              ? Math.sin(theta * 3 + avatarAngle * 2) * 2.5
+              : Math.sin(theta * 2 + avatarAngle) * 0.8;
+            const radius = r + deform;
+            const x = cx + Math.cos(theta) * radius;
+            const y = cy + Math.sin(theta) * radius;
+            if (i === 0) avatarCtx.moveTo(x, y);
+            else avatarCtx.lineTo(x, y);
+          }
+          avatarCtx.closePath();
+          avatarCtx.strokeStyle = r === 14 ? "#06b6d4" : "#3b82f6";
+          avatarCtx.lineWidth = 1.2;
+          avatarCtx.stroke();
+        }
+
+        // Center glowing core
+        avatarCtx.beginPath();
+        avatarCtx.arc(cx, cy, voiceModeActive ? 4 : 2.5, 0, Math.PI * 2);
+        avatarCtx.fillStyle = "#38bdf8";
+        avatarCtx.fill();
+
+        requestAnimationFrame(renderAvatarWidget);
+      }
+      renderAvatarWidget();
+
+      // Voice Waveform Mini Canvas
+      let waveAngle = 0;
+      function renderWaveform() {
+        waveCtx.clearRect(0, 0, voiceWaveCanvas.width, voiceWaveCanvas.height);
+        const cx = voiceWaveCanvas.width / 2;
+        const cy = voiceWaveCanvas.height / 2;
+        waveAngle += 0.05;
+
+        waveCtx.beginPath();
+        for (let x = 6; x <= 38; x += 3) {
+          const height = isMuted ? 3 : Math.abs(Math.sin((x + waveAngle * 10) * 0.2)) * 14 + 3;
+          waveCtx.moveTo(x, cy - height / 2);
+          waveCtx.lineTo(x, cy + height / 2);
+        }
+        waveCtx.strokeStyle = isMuted ? "#f87171" : "#06b6d4";
+        waveCtx.lineWidth = 1.8;
+        waveCtx.lineCap = "round";
+        waveCtx.stroke();
+
+        requestAnimationFrame(renderWaveform);
+      }
+      renderWaveform();
+    </script>
+  </body>
+</html>
