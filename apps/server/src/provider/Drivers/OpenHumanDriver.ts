@@ -3,10 +3,16 @@ import {
   type ModelSelection,
   ProviderDriverKind,
   type ProviderRuntimeEvent,
+  type ProviderSendTurnInput,
+  type ProviderSession,
+  type ProviderSessionStartInput,
   type ServerProvider,
   TextGenerationError,
+  ThreadId,
   TurnId,
 } from "@t3tools/contracts";
+import * as Clock from "effect/Clock";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
@@ -15,9 +21,9 @@ import * as PubSub from "effect/PubSub";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
-import { HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
 
-import { ProviderAdapterError } from "../Errors.ts";
+import { ProviderAdapterRequestError, type ProviderAdapterError } from "../Errors.ts";
 import { recordEvolutionSkill } from "../Layers/OpenHumanEvolution.ts";
 import { buildServerProvider } from "../providerSnapshot.ts";
 import {
@@ -25,6 +31,8 @@ import {
   type ProviderDriver,
   type ProviderInstance,
 } from "../ProviderDriver.ts";
+import type { ServerProviderShape } from "../Services/ServerProvider.ts";
+import type { ProviderAdapterShape, ProviderThreadSnapshot } from "../Services/ProviderAdapter.ts";
 
 export const OpenHumanConfig = Schema.Struct({
   enabled: Schema.optional(Schema.Boolean),
@@ -36,6 +44,9 @@ export const DRIVER_KIND = ProviderDriverKind.make("openhuman");
 
 export type OpenHumanDriverEnv = HttpClient.HttpClient | FileSystem.FileSystem | Path.Path;
 
+const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
+const decodeJson = HttpClientResponse.schemaBodyJson(Schema.Unknown);
+
 export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv> = {
   driverKind: DRIVER_KIND,
   metadata: {
@@ -43,9 +54,12 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
     supportsMultipleInstances: false,
   },
   configSchema: OpenHumanConfig,
+  defaultConfig: () => ({ enabled: true, serverUrl: "http://127.0.0.1:8899" }),
   create: ({ instanceId, displayName, accentColor, enabled, config }) =>
     Effect.gen(function* () {
       const httpClient = yield* HttpClient.HttpClient;
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
       const serverUrl = config.serverUrl ?? "http://127.0.0.1:8899";
       const continuationIdentity = defaultProviderContinuationIdentity({
         driverKind: DRIVER_KIND,
@@ -62,37 +76,46 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
           const req = HttpClientRequest.get(`${serverUrl}/events`).pipe(
             HttpClientRequest.setHeader("accept", "application/json"),
           );
-          const res = yield* httpClient.execute(req).pipe(
-            Effect.timeoutOption("3 seconds"),
-            Effect.orElseSucceed(() => Option.none()),
+          const raw = yield* Effect.scoped(
+            httpClient.execute(req).pipe(
+              Effect.flatMap((res) => decodeJson(res)),
+              Effect.timeoutOption("3 seconds"),
+              Effect.orElseSucceed(() => Option.none()),
+            ),
           );
-          if (Option.isSome(res) && res.value.status === 200) {
-            const raw = yield* res.value.json.pipe(Effect.orElseSucceed(() => []));
-            if (Array.isArray(raw)) {
-              for (const item of raw) {
-                yield* emit({
-                  eventId: EventId.make(`evt-${Date.now()}`),
-                  provider: DRIVER_KIND,
-                  createdAt: new Date().toISOString(),
-                  type: "warning",
-                  payload: {
-                    message: `[J.A.R.V.I.S.] ${item.message ?? "Proactive system alert"}`,
-                  },
-                } as unknown as ProviderRuntimeEvent);
-              }
+          if (Option.isSome(raw) && Array.isArray(raw.value)) {
+            for (const item of raw.value) {
+              const now = yield* nowIso;
+              const millis = yield* Clock.currentTimeMillis;
+              const msg =
+                typeof item === "object" && item !== null && "message" in item
+                  ? String((item as { message: unknown }).message)
+                  : "Proactive system alert";
+              yield* emit({
+                eventId: EventId.make(`evt-${millis}`),
+                provider: DRIVER_KIND,
+                createdAt: now,
+                type: "warning",
+                payload: {
+                  message: `[J.A.R.V.I.S.] ${msg}`,
+                },
+              } as unknown as ProviderRuntimeEvent);
             }
           }
         }).pipe(Effect.repeat({ schedule: Schedule.spaced("5 seconds") }), Effect.forkScoped);
       }
 
-      const probeDaemon = httpClient.execute(HttpClientRequest.get(`${serverUrl}/health`)).pipe(
-        Effect.timeoutOption("2 seconds"),
-        Effect.map((res) => Option.isSome(res) && res.value.status < 400),
-        Effect.orElseSucceed(() => false),
+      const probeDaemon = Effect.scoped(
+        httpClient.execute(HttpClientRequest.get(`${serverUrl}/health`)).pipe(
+          Effect.timeoutOption("2 seconds"),
+          Effect.map((res) => Option.isSome(res) && res.value.status < 400),
+          Effect.orElseSucceed(() => false),
+        ),
       );
 
       const getSnapshot = Effect.gen(function* () {
         const isOnline = enabled ? yield* probeDaemon : false;
+        const now = yield* nowIso;
         return {
           instanceId,
           driver: DRIVER_KIND,
@@ -103,23 +126,23 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
               badgeLabel: "Rust Engine",
             },
             enabled,
-            checkedAt: new Date().toISOString(),
+            checkedAt: now,
             models: [
               {
                 slug: "openhuman:jarvis",
                 name: "J.A.R.V.I.S. Core",
-                capabilities: {
-                  supportsReasoningEffort: false,
-                  supportsImageInput: true,
-                  reportsContextWindow: true,
-                },
+                isCustom: false,
+                capabilities: {},
               },
             ],
             probe: {
               installed: true,
               version: "0.1.0",
-              status: enabled ? (isOnline ? "ready" : "unauthenticated") : "disabled",
-              auth: { type: "local" },
+              status: isOnline ? "ready" : "warning",
+              auth: {
+                status: isOnline ? "authenticated" : "unauthenticated",
+                type: "local",
+              },
               message: isOnline
                 ? `Connected to OpenHuman at ${serverUrl}`
                 : `OpenHuman daemon offline. Run openhuman with jarvis.config.toml (port 8899).`,
@@ -128,72 +151,92 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
         } satisfies ServerProvider;
       });
 
-      const snapshot = {
+      const snapshot: ServerProviderShape = {
         getSnapshot,
-        changes: Effect.never,
+        refresh: getSnapshot,
+        resolveMaintenance: () =>
+          Effect.succeed({
+            provider: DRIVER_KIND,
+            packageName: null,
+            update: null,
+            canCheckForUpdates: false,
+            canUpdate: false,
+            supportsAutoUpdate: false,
+          }),
+        streamChanges: Stream.never,
+        applyUsageLimits: () => Effect.void,
       };
 
-      const adapter = {
+      const adapter: ProviderAdapterShape<ProviderAdapterError> = {
         provider: DRIVER_KIND,
         capabilities: { sessionModelSwitch: "unsupported" as const },
         streamEvents: Stream.fromPubSub(events),
-        startSession: (input: { sessionId: string; modelSelection?: ModelSelection }) =>
+        startSession: (input: ProviderSessionStartInput) =>
           Effect.succeed({
-            sessionId: input.sessionId,
-            driver: DRIVER_KIND,
+            sessionId: input.threadId,
+            threadId: input.threadId,
+            provider: DRIVER_KIND,
             status: "ready" as const,
             modelSelection: input.modelSelection,
-          }),
-        sendTurn: (input: { threadId: string; prompt: string }) =>
+          } as unknown as ProviderSession),
+        sendTurn: (input: ProviderSendTurnInput) =>
           Effect.gen(function* () {
-            const turnId = TurnId.make(`turn-${Date.now()}`);
-            const body = JSON.stringify({
+            const millis = yield* Clock.currentTimeMillis;
+            const now = yield* nowIso;
+            const turnId = TurnId.make(`turn-${millis}`);
+            const payload = {
               jsonrpc: "2.0",
-              id: Date.now(),
+              id: millis,
               method: "turn",
               params: {
                 threadId: input.threadId,
-                prompt: input.prompt,
+                prompt: input.input ?? "",
               },
-            });
+            };
             const req = HttpClientRequest.post(`${serverUrl}/rpc`).pipe(
               HttpClientRequest.setHeader("content-type", "application/json"),
-              HttpClientRequest.bodyText(body),
-            );
-            const response = yield* httpClient.execute(req).pipe(
-              Effect.timeoutOption("30 seconds"),
-              Effect.mapError(
-                (err) =>
-                  new ProviderAdapterError({
-                    provider: DRIVER_KIND,
-                    operation: "sendTurn",
-                    detail: `Failed to dispatch turn to OpenHuman: ${err}`,
-                  }),
-              ),
+              HttpClientRequest.bodyJsonUnsafe(payload),
             );
 
-            if (Option.isNone(response)) {
-              return yield* Effect.fail(
-                new ProviderAdapterError({
-                  provider: DRIVER_KIND,
-                  operation: "sendTurn",
-                  detail: `OpenHuman at ${serverUrl} timed out. Ensure the daemon is running.`,
-                }),
-              );
-            }
+            const outcome = yield* Effect.scoped(
+              Effect.gen(function* () {
+                const response = yield* httpClient.execute(req).pipe(
+                  Effect.timeoutOption("30 seconds"),
+                  Effect.mapError(
+                    (err) =>
+                      new ProviderAdapterRequestError({
+                        provider: DRIVER_KIND,
+                        method: "sendTurn",
+                        detail: `Failed to dispatch turn to OpenHuman: ${err}`,
+                      }),
+                  ),
+                );
+
+                if (Option.isNone(response)) {
+                  return yield* new ProviderAdapterRequestError({
+                    provider: DRIVER_KIND,
+                    method: "sendTurn",
+                    detail: `OpenHuman at ${serverUrl} timed out. Ensure the daemon is running.`,
+                  });
+                }
+
+                const res = response.value;
+                const json = yield* decodeJson(res).pipe(Effect.orElseSucceed(() => null));
+                return { status: res.status, json };
+              }),
+            );
 
             yield* emit({
-              eventId: EventId.make(`evt-${Date.now()}`),
+              eventId: EventId.make(`evt-${millis}`),
               provider: DRIVER_KIND,
-              createdAt: new Date().toISOString(),
+              createdAt: now,
               type: "turn.started",
               payload: { threadId: input.threadId, turnId },
             } as unknown as ProviderRuntimeEvent);
 
             // Phase 4: Self-Evolution Hook (Persist newly learned skills)
-            const res = response.value;
-            if (res.status === 200) {
-              const resJson = (yield* res.json.pipe(Effect.orElseSucceed(() => null))) as {
+            if (outcome.status === 200) {
+              const resJson = outcome.json as {
                 result?: { newSkill?: { name: string; description?: string; content: string } };
               } | null;
               if (resJson?.result?.newSkill) {
@@ -203,11 +246,15 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
                   name: s.name,
                   description: s.description ?? "Self-evolved tool synthesized by J.A.R.V.I.S.",
                   content: s.content,
-                }).pipe(Effect.orElseSucceed(() => ""));
+                }).pipe(
+                  Effect.provideService(FileSystem.FileSystem, fs),
+                  Effect.provideService(Path.Path, path),
+                  Effect.orElseSucceed(() => ""),
+                );
               }
             }
 
-            return { turnId };
+            return { threadId: input.threadId, turnId };
           }),
         interruptTurn: () => Effect.void,
         respondToRequest: () => Effect.void,
@@ -215,18 +262,25 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
         stopSession: () => Effect.void,
         listSessions: () => Effect.succeed([]),
         hasSession: () => Effect.succeed(false),
-        readThread: (threadId: string) => Effect.succeed({ threadId, turns: [] }),
-        rollbackThread: (threadId: string) => Effect.succeed({ threadId, turns: [] }),
-        stopAllSessions: () => Effect.void,
+        readThread: (threadId: ThreadId) =>
+          Effect.succeed({ threadId, turns: [] } as unknown as ProviderThreadSnapshot),
+        rollbackThread: (threadId: ThreadId, _numTurns: number) =>
+          Effect.succeed({ threadId, turns: [] } as unknown as ProviderThreadSnapshot),
+        stopAll: () => Effect.void,
       };
 
-      const failTextGen = () =>
-        Effect.fail(new TextGenerationError({ message: "Delegated to OpenHuman native runtime" }));
+      const failTextGen = (operation: string) =>
+        Effect.fail(
+          new TextGenerationError({
+            operation,
+            detail: "Delegated to OpenHuman native runtime",
+          }),
+        );
       const textGeneration = {
-        generateCommitMessage: failTextGen,
-        generatePrContent: failTextGen,
-        generateBranchName: failTextGen,
-        generateThreadTitle: failTextGen,
+        generateCommitMessage: () => failTextGen("generateCommitMessage"),
+        generatePrContent: () => failTextGen("generatePrContent"),
+        generateBranchName: () => failTextGen("generateBranchName"),
+        generateThreadTitle: () => failTextGen("generateThreadTitle"),
       };
 
       return {
