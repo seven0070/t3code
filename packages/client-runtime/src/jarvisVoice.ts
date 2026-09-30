@@ -1,20 +1,24 @@
 /**
- * J.A.R.V.I.S. Voice Output
+ * J.A.R.V.I.S. Voice Output (Phase 3)
  *
- * Configured for an empathetic, soothing, mature female voice:
- * - Slightly lowered pitch (0.88) for warmth and maturity
- * - Unhurried speech rate (0.90) for calm pacing
- * - Automatic preference for natural neural/female voices
+ * Configured for an empathetic, soothing, natural female voice:
+ * - Primary Voice: AvaMultilingualNeural / AvaNeural (Copilot Conversational)
+ * - Fallbacks: Jenny, Sonia, Zira
+ * - Rate: 0.94 (unhurried, gentle, conversational)
+ * - Pitch: 1.0 (natural harmonic frequency with authentic micro-pauses)
  */
 
 const PREFERRED_VOICE_NAMES = [
+  "AvaMultilingual",
+  "Ava",
+  "en-US-AvaNeural",
   "Microsoft Jenny",
   "Google UK English Female",
+  "Sonia",
   "Microsoft Zira",
   "Karen",
   "Moira",
   "Samantha",
-  "Fiona",
   "Victoria",
 ];
 
@@ -29,7 +33,6 @@ export function getSoothingFemaleVoice(): SpeechSynthesisVoice | null {
     if (match) return match;
   }
 
-  // Fallback: any English female voice
   return voices.find((v) => v.lang.startsWith("en") && /female|woman/i.test(v.name)) ?? null;
 }
 
@@ -38,7 +41,7 @@ export function speakJarvis(text: string): void {
     return;
   }
 
-  window.speechSynthesis.cancel(); // Stop prior speech
+  window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   const voice = getSoothingFemaleVoice();
 
@@ -46,10 +49,22 @@ export function speakJarvis(text: string): void {
     utterance.voice = voice;
   }
 
-  // Empathetic & soothing tuning
-  utterance.pitch = 0.88; // Lower register = warmer, more mature
-  utterance.rate = 0.90;  // Gentle, unhurried cadence
+  utterance.pitch = 1.0;
+  utterance.rate = 0.94;
   utterance.volume = 0.95;
 
   window.speechSynthesis.speak(utterance);
+}
+
+export function playJarvisAudioStream(audioUrl: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") {
+      resolve();
+      return;
+    }
+    const audio = new Audio(audioUrl);
+    audio.onended = () => resolve();
+    audio.onerror = (e) => reject(e);
+    audio.play().catch(reject);
+  });
 }
