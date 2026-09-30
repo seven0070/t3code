@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nova — Intelligent AI Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              bg: { base: "#09090b", surface: "#121215", elevated: "#18181c", hover: "#222228" },
+              border: { subtle: "rgba(255,255,255,0.07)", hover: "rgba(255,255,255,0.15)" },
+              accent: { primary: "#6366f1", glow: "rgba(99,102,241,0.25)" },
+            },
+            fontFamily: {
+              sans: [
+                "Inter",
+                "system-ui",
+                "-apple-system",
+                "BlinkMacSystemFont",
+                "Segoe UI",
+                "Roboto",
+                "sans-serif",
+              ],
+              mono: ["JetBrains Mono", "Fira Code", "monospace"],
+            },
+          },
+        },
+      };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      code,
+      pre {
+        font-family: "JetBrains Mono", monospace;
+      }
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.22);
+      }
+      .glass {
+        background: rgba(18, 18, 21, 0.75);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+      }
+      .orb-glow {
+        box-shadow:
+          0 0 100px 30px rgba(99, 102, 241, 0.22),
+          0 0 160px 60px rgba(168, 85, 247, 0.15);
+      }
+      @keyframes pulse-subtle {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.85;
+          transform: scale(1.02);
+        }
+      }
+      .animate-pulse-subtle {
+        animation: pulse-subtle 4s ease-in-out infinite;
+      }
+    </style>
+  </head>
+  <body class="bg-[#09090b] text-[#f4f4f5] h-screen overflow-hidden flex select-none antialiased">
+    <!-- SIDEBAR -->
+    <aside
+      id="sidebar"
+      class="w-64 bg-[#101013] border-r border-[rgba(255,255,255,0.06)] flex flex-col justify-between p-3.5 transition-all duration-300 relative z-30 shrink-0"
+    >
+      <div class="flex flex-col h-full overflow-hidden">
+        <!-- App Header -->
+        <div class="flex items-center justify-between mb-4 px-1">
+          <div class="flex items-center gap-2.5">
+            <div
+              class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25"
+            >
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <div
+                class="text-sm font-semibold tracking-tight text-white flex items-center gap-1.5"
+              >
+                <span>Nova AI</span>
+                <span
+                  class="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono"
+                  >v2.5</span
+                >
+              </div>
+              <div class="text-[11px] text-[#71717a]">Universal Intelligence</div>
+            </div>
+          </div>
+          <button
+            id="toggle-sidebar"
+            class="p-1.5 rounded-lg text-[#71717a] hover:text-white hover:bg-[#18181c] transition"
+            title="Toggle sidebar"
+          >
+            <i data-lucide="panel-left-close" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- New Chat Button -->
+        <button
+          id="new-chat-btn"
+          class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600/90 to-purple-600/90 hover:from-indigo-600 hover:to-purple-600 text-white font-medium text-xs shadow-md shadow-indigo-600/20 transition-all duration-200 group mb-4"
+        >
+          <span class="flex items-center gap-2">
+            <i
+              data-lucide="plus"
+              class="w-4 h-4 group-hover:rotate-90 transition-transform duration-200"
+            ></i>
+            <span>New Thread</span>
+          </span>
+          <kbd class="text-[10px] px-1.5 py-0.5 rounded bg-black/25 text-white/80 font-mono"
+            >⌘K</kbd
+          >
+        </button>
+
+        <!-- History Section -->
+        <div class="flex-1 overflow-y-auto pr-1 space-y-4">
+          <div>
+            <div
+              class="text-[10px] font-semibold tracking-wider uppercase text-[#71717a] px-2 mb-1.5"
+            >
+              Pinned
+            </div>
+            <div class="space-y-0.5">
+              <button
+                class="w-full text-left px-2.5 py-2 rounded-lg bg-[#18181c] text-[#f4f4f5] text-xs flex items-center justify-between group border border-[rgba(255,255,255,0.04)]"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="pin" class="w-3 h-3 text-indigo-400 shrink-0"></i>
+                  <span class="truncate">Distributed Memory Architecture</span>
+                </span>
+                <i
+                  data-lucide="chevron-right"
+                  class="w-3 h-3 opacity-0 group-hover:opacity-100 text-[#71717a] transition"
+                ></i>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div
+              class="text-[10px] font-semibold tracking-wider uppercase text-[#71717a] px-2 mb-1.5"
+            >
+              Today
+            </div>
+            <div class="space-y-0.5">
+              <button
+                class="w-full text-left px-2.5 py-2 rounded-lg hover:bg-[#18181c] text-[#a1a1aa] hover:text-white text-xs flex items-center justify-between group transition"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="message-square" class="w-3 h-3 text-[#71717a] shrink-0"></i>
+                  <span class="truncate">Real-time Audio Visualizer</span>
+                </span>
+              </button>
+              <button
+                class="w-full text-left px-2.5 py-2 rounded-lg hover:bg-[#18181c] text-[#a1a1aa] hover:text-white text-xs flex items-center justify-between group transition"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="message-square" class="w-3 h-3 text-[#71717a] shrink-0"></i>
+                  <span class="truncate">TanStack Start & Nitro Engine</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div
+              class="text-[10px] font-semibold tracking-wider uppercase text-[#71717a] px-2 mb-1.5"
+            >
+              Past 7 Days
+            </div>
+            <div class="space-y-0.5">
+              <button
+                class="w-full text-left px-2.5 py-2 rounded-lg hover:bg-[#18181c] text-[#a1a1aa] hover:text-white text-xs flex items-center justify-between group transition"
+              >
+                <span class="flex items-center gap-2 truncate">
+                  <i data-lucide="code-2" class="w-3 h-3 text-[#71717a] shrink-0"></i>
+                  <span class="truncate">Next-gen Canvas Shaders</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account & Status Footer -->
+        <div class="pt-3 border-t border-[rgba(255,255,255,0.06)] flex flex-col gap-2">
+          <div
+            class="flex items-center justify-between px-2 py-1 bg-[#18181c] rounded-lg border border-[rgba(255,255,255,0.04)]"
+          >
+            <span class="flex items-center gap-2 text-[11px] text-[#a1a1aa]">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>API Online</span>
+            </span>
+            <span class="text-[10px] font-mono text-[#71717a]">18ms</span>
+          </div>
+
+          <button
+            class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-[#18181c] transition group"
+          >
+            <div
+              class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold ring-2 ring-indigo-500/20"
+            >
+              S
+            </div>
+            <div class="flex-1 text-left min-w-0">
+              <div class="text-xs font-semibold text-white truncate">Sanath</div>
+              <div class="text-[10px] text-[#71717a] truncate">Pro Developer • Unlimited</div>
+            </div>
+            <i
+              data-lucide="settings"
+              class="w-4 h-4 text-[#71717a] group-hover:text-white transition"
+            ></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CANVAS -->
+    <main class="flex-1 flex flex-col h-full bg-[#09090b] relative overflow-hidden">
+      <!-- Top Header -->
+      <header
+        class="h-14 border-b border-[rgba(255,255,255,0.06)] px-4 flex items-center justify-between z-20 glass"
+      >
+        <div class="flex items-center gap-3">
+          <button
+            id="open-sidebar"
+            class="p-2 rounded-lg text-[#71717a] hover:text-white hover:bg-[#18181c] transition hidden"
+          >
+            <i data-lucide="panel-left-open" class="w-4 h-4"></i>
+          </button>
+
+          <!-- Model Picker Dropdown -->
+          <div class="relative">
+            <button
+              id="model-dropdown-btn"
+              class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#141417] hover:bg-[#1c1c21] border border-[rgba(255,255,255,0.07)] text-xs font-medium text-white transition group"
+            >
+              <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+              <span id="current-model-name">Nova-Pro 2.5</span>
+              <span
+                class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-mono"
+                >Fastest</span
+              >
+              <i
+                data-lucide="chevron-down"
+                class="w-3.5 h-3.5 text-[#71717a] group-hover:text-white transition"
+              ></i>
+            </button>
+
+            <div
+              id="model-menu"
+              class="hidden absolute top-full left-0 mt-1.5 w-64 rounded-xl bg-[#141417] border border-[rgba(255,255,255,0.1)] p-1.5 shadow-2xl z-50 space-y-1"
+            >
+              <button
+                class="model-option w-full flex items-center justify-between p-2 rounded-lg bg-indigo-600/15 text-white text-xs text-left"
+                data-name="Nova-Pro 2.5"
+                data-tag="Fastest"
+              >
+                <div>
+                  <div class="font-medium">Nova-Pro 2.5</div>
+                  <div class="text-[10px] text-[#a1a1aa]">Optimized for code & reasoning</div>
+                </div>
+                <i data-lucide="check" class="w-3.5 h-3.5 text-indigo-400"></i>
+              </button>
+              <button
+                class="model-option w-full flex items-center justify-between p-2 rounded-lg hover:bg-[#1c1c21] text-[#a1a1aa] hover:text-white text-xs text-left"
+                data-name="Claude 3.7 Sonnet"
+                data-tag="Thinking"
+              >
+                <div>
+                  <div class="font-medium">Claude 3.7 Sonnet</div>
+                  <div class="text-[10px] text-[#71717a]">Hybrid reasoning & writing</div>
+                </div>
+              </button>
+              <button
+                class="model-option w-full flex items-center justify-between p-2 rounded-lg hover:bg-[#1c1c21] text-[#a1a1aa] hover:text-white text-xs text-left"
+                data-name="DeepSeek R1"
+                data-tag="Math/Code"
+              >
+                <div>
+                  <div class="font-medium">DeepSeek R1</div>
+                  <div class="text-[10px] text-[#71717a]">Open-weights reasoning engine</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Voice Overlay Toggle -->
+          <button
+            id="open-voice-modal"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition shadow-sm group"
+          >
+            <i
+              data-lucide="mic"
+              class="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform"
+            ></i>
+            <span>Voice Mode</span>
+          </button>
+          <button
+            class="p-2 rounded-lg hover:bg-[#18181c] text-[#71717a] hover:text-white transition"
+            title="Share thread"
+          >
+            <i data-lucide="share-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Message Area -->
+      <div id="messages-viewport" class="flex-1 overflow-y-auto px-4 py-8">
+        <div class="max-w-3xl mx-auto space-y-6">
+          <!-- Welcome Hero State -->
+          <div id="hero-state" class="text-center pt-16 pb-10 space-y-6">
+            <div
+              class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-500/20 text-xs text-indigo-300 font-medium"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping"></span>
+              Next-Generation Agentic Workspace
+            </div>
+
+            <h1 class="text-3xl md:text-4xl font-semibold tracking-tight text-white leading-tight">
+              What would you like to build today?
+            </h1>
+            <p class="text-sm text-[#a1a1aa] max-w-md mx-auto">
+              Directly orchestrate codebases, generate complex visualizers, or converse with zero
+              latency.
+            </p>
+
+            <!-- Bento Suggestion Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-left pt-4">
+              <button
+                class="prompt-chip p-4 rounded-2xl bg-[#121215] hover:bg-[#18181c] border border-[rgba(255,255,255,0.06)] hover:border-indigo-500/30 transition-all duration-200 group flex flex-col gap-1.5 shadow-lg shadow-black/40"
+                data-prompt="Design an interactive Canvas audio waveform orb with fluid dynamics in JavaScript."
+              >
+                <div class="flex items-center justify-between text-indigo-400">
+                  <i data-lucide="waves" class="w-4 h-4"></i>
+                  <i
+                    data-lucide="arrow-up-right"
+                    class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                  ></i>
+                </div>
+                <span class="text-xs font-semibold text-white">Fluid Audio Waveform Orb</span>
+                <span class="text-[11px] text-[#71717a]"
+                  >Generative sine/cosine deformation with neon radial shaders</span
+                >
+              </button>
+
+              <button
+                class="prompt-chip p-4 rounded-2xl bg-[#121215] hover:bg-[#18181c] border border-[rgba(255,255,255,0.06)] hover:border-indigo-500/30 transition-all duration-200 group flex flex-col gap-1.5 shadow-lg shadow-black/40"
+                data-prompt="Analyze the difference between TanStack Start SSR versus Vite Single Page Applications."
+              >
+                <div class="flex items-center justify-between text-purple-400">
+                  <i data-lucide="cpu" class="w-4 h-4"></i>
+                  <i
+                    data-lucide="arrow-up-right"
+                    class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                  ></i>
+                </div>
+                <span class="text-xs font-semibold text-white">TanStack Start Architecture</span>
+                <span class="text-[11px] text-[#71717a]"
+                  >Deep comparison of server functions, bundling, and Nitro hydration</span
+                >
+              </button>
+            </div>
+          </div>
+
+          <!-- Chat Stream Messages Container -->
+          <div id="chat-stream" class="space-y-6 hidden"></div>
+        </div>
+      </div>
+
+      <!-- Floating Input Capsule -->
+      <div class="p-4 max-w-3xl w-full mx-auto relative z-20">
+        <div
+          class="bg-[#121215] rounded-3xl border border-[rgba(255,255,255,0.08)] focus-within:border-indigo-500/50 shadow-2xl p-2.5 flex flex-col transition-all duration-200"
+        >
+          <textarea
+            id="chat-textarea"
+            rows="1"
+            placeholder="Ask Nova anything or type '/' for commands..."
+            class="w-full bg-transparent px-3 pt-1 pb-2 text-sm text-white placeholder-[#71717a] resize-none outline-none max-h-48 leading-relaxed"
+          ></textarea>
+
+          <div
+            class="flex items-center justify-between pt-1 border-t border-[rgba(255,255,255,0.04)] mt-1"
+          >
+            <div class="flex items-center gap-1">
+              <button
+                class="p-2 rounded-full text-[#71717a] hover:text-white hover:bg-[#1c1c21] transition"
+                title="Attach file"
+              >
+                <i data-lucide="paperclip" class="w-4 h-4"></i>
+              </button>
+              <button
+                id="deep-think-toggle"
+                class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[#71717a] hover:text-indigo-400 hover:bg-[#1c1c21] text-xs font-medium transition"
+                title="Enable deep reasoning"
+              >
+                <i data-lucide="lightbulb" class="w-3.5 h-3.5"></i>
+                <span class="text-[11px]">Deep Think</span>
+              </button>
+              <button
+                id="web-search-toggle"
+                class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[#71717a] hover:text-indigo-400 hover:bg-[#1c1c21] text-xs font-medium transition"
+                title="Search web"
+              >
+                <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+                <span class="text-[11px]">Web</span>
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                id="submit-btn"
+                class="w-8 h-8 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center disabled:opacity-30 disabled:bg-[#222228] disabled:text-[#71717a] transition shadow-md shadow-indigo-600/30"
+                disabled
+              >
+                <i data-lucide="arrow-up" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="text-[11px] text-center text-[#71717a] mt-2">
+          Nova v2.5 Engine • Ultra-low latency edge orchestration
+        </div>
+      </div>
+    </main>
+
+    <!-- VOICE MODE FULLSCREEN OVERLAY -->
+    <div
+      id="voice-overlay"
+      class="fixed inset-0 bg-[#09090b] z-50 flex flex-col justify-between p-6 transition-all duration-500 opacity-0 pointer-events-none scale-95"
+    >
+      <div class="flex items-center justify-between w-full max-w-4xl mx-auto">
+        <div class="flex items-center gap-3">
+          <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
+          <span class="text-sm font-semibold tracking-wide text-white">Nova Realtime Voice</span>
+          <span
+            class="text-xs px-2 py-0.5 rounded-full bg-[#18181c] text-indigo-300 border border-indigo-500/20 font-mono"
+            >Neural Audio</span
+          >
+        </div>
+
+        <div
+          class="flex items-center gap-1 bg-[#141417] p-1 rounded-full border border-[rgba(255,255,255,0.08)]"
+        >
+          <button
+            id="btn-listening"
+            class="px-3 py-1 rounded-full text-xs font-medium bg-indigo-600 text-white transition"
+          >
+            Listening
+          </button>
+          <button
+            id="btn-thinking"
+            class="px-3 py-1 rounded-full text-xs font-medium text-[#71717a] hover:text-white transition"
+          >
+            Thinking
+          </button>
+          <button
+            id="btn-speaking"
+            class="px-3 py-1 rounded-full text-xs font-medium text-[#71717a] hover:text-white transition"
+          >
+            Speaking
+          </button>
+        </div>
+
+        <button
+          id="close-voice-modal"
+          class="p-2.5 rounded-full bg-[#141417] hover:bg-[#1c1c21] text-[#a1a1aa] hover:text-white border border-[rgba(255,255,255,0.08)] transition"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Central Fluid Wave Canvas -->
+      <div class="flex-1 flex flex-col items-center justify-center relative my-auto">
+        <div class="absolute w-[360px] h-[360px] rounded-full orb-glow pointer-events-none"></div>
+        <canvas
+          id="voice-canvas"
+          width="480"
+          height="480"
+          class="relative z-10 cursor-pointer"
+        ></canvas>
+
+        <div class="mt-8 text-center max-w-md z-10 space-y-2">
+          <div
+            id="voice-status"
+            class="text-xs tracking-widest uppercase text-indigo-400 font-mono"
+          >
+            Live Acoustic Channel
+          </div>
+          <div
+            id="voice-transcript"
+            class="text-lg md:text-xl font-medium text-white/90 leading-relaxed min-h-[3rem]"
+          >
+            "I'm listening. Ask anything or describe your task."
+          </div>
+        </div>
+      </div>
+
+      <!-- Voice Control Dock -->
+      <div class="w-full max-w-md mx-auto flex items-center justify-center gap-6 pb-6 z-10">
+        <button
+          class="w-12 h-12 rounded-full bg-[#141417] hover:bg-[#1c1c21] text-[#a1a1aa] hover:text-white border border-[rgba(255,255,255,0.08)] flex items-center justify-center transition shadow-lg"
+        >
+          <i data-lucide="video" class="w-5 h-5"></i>
+        </button>
+        <button
+          id="voice-mic-btn"
+          class="w-16 h-16 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-xl shadow-indigo-600/40 transition group"
+        >
+          <i
+            id="voice-mic-icon"
+            data-lucide="mic"
+            class="w-7 h-7 group-hover:scale-105 transition-transform"
+          ></i>
+        </button>
+        <button
+          id="end-call-btn"
+          class="w-12 h-12 rounded-full bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-800/40 flex items-center justify-center transition shadow-lg"
+        >
+          <i data-lucide="phone-off" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+
+    <script>
+      lucide.createIcons();
+
+      // DOM Elements
+      const sidebar = document.getElementById("sidebar");
+      const toggleSidebar = document.getElementById("toggle-sidebar");
+      const openSidebar = document.getElementById("open-sidebar");
+      const chatTextarea = document.getElementById("chat-textarea");
+      const submitBtn = document.getElementById("submit-btn");
+      const heroState = document.getElementById("hero-state");
+      const chatStream = document.getElementById("chat-stream");
+      const messagesViewport = document.getElementById("messages-viewport");
+      const promptChips = document.querySelectorAll(".prompt-chip");
+      const modelDropdownBtn = document.getElementById("model-dropdown-btn");
+      const modelMenu = document.getElementById("model-menu");
+      const modelOptions = document.querySelectorAll(".model-option");
+      const currentModelName = document.getElementById("current-model-name");
+      const newChatBtn = document.getElementById("new-chat-btn");
+
+      // Voice Elements
+      const openVoiceModal = document.getElementById("open-voice-modal");
+      const closeVoiceModal = document.getElementById("close-voice-modal");
+      const endCallBtn = document.getElementById("end-call-btn");
+      const voiceOverlay = document.getElementById("voice-overlay");
+      const voiceCanvas = document.getElementById("voice-canvas");
+      const ctx = voiceCanvas.getContext("2d");
+      const voiceStatus = document.getElementById("voice-status");
+      const voiceTranscript = document.getElementById("voice-transcript");
+      const voiceMicBtn = document.getElementById("voice-mic-btn");
+      const voiceMicIcon = document.getElementById("voice-mic-icon");
+      const btnListening = document.getElementById("btn-listening");
+      const btnThinking = document.getElementById("btn-thinking");
+      const btnSpeaking = document.getElementById("btn-speaking");
+
+      // Sidebar Toggling
+      toggleSidebar.addEventListener("click", () => {
+        sidebar.classList.add("-ml-64");
+        openSidebar.classList.remove("hidden");
+      });
+      openSidebar.addEventListener("click", () => {
+        sidebar.classList.remove("-ml-64");
+        openSidebar.classList.add("hidden");
+      });
+
+      // Model Dropdown
+      modelDropdownBtn.addEventListener("click", () => {
+        modelMenu.classList.toggle("hidden");
+      });
+      document.addEventListener("click", (e) => {
+        if (!modelDropdownBtn.contains(e.target) && !modelMenu.contains(e.target)) {
+          modelMenu.classList.add("hidden");
+        }
+      });
+      modelOptions.forEach((opt) => {
+        opt.addEventListener("click", () => {
+          currentModelName.innerText = opt.getAttribute("data-name");
+          modelMenu.classList.add("hidden");
+        });
+      });
+
+      // Textarea Auto-Resize
+      chatTextarea.addEventListener("input", () => {
+        chatTextarea.style.height = "auto";
+        chatTextarea.style.height = Math.min(chatTextarea.scrollHeight, 180) + "px";
+        submitBtn.disabled = chatTextarea.value.trim() === "";
+      });
+
+      // Reset Chat
+      newChatBtn.addEventListener("click", () => {
+        chatStream.innerHTML = "";
+        chatStream.classList.add("hidden");
+        heroState.classList.remove("hidden");
+        chatTextarea.value = "";
+        submitBtn.disabled = true;
+      });
+
+      // Submit Message & Simulated AI Response
+      function handleSend(userText) {
+        if (!userText) return;
+
+        heroState.classList.add("hidden");
+        chatStream.classList.remove("hidden");
+
+        // User Message Bubble
+        const userDiv = document.createElement("div");
+        userDiv.className = "flex justify-end";
+        userDiv.innerHTML = `
+        <div class="bg-[#18181c] border border-[rgba(255,255,255,0.08)] text-white px-4 py-3 rounded-2xl max-w-[85%] text-sm leading-relaxed shadow-lg">
+          ${userText}
+        </div>
+      `;
+        chatStream.appendChild(userDiv);
+
+        chatTextarea.value = "";
+        chatTextarea.style.height = "auto";
+        submitBtn.disabled = true;
+        messagesViewport.scrollTop = messagesViewport.scrollHeight;
+
+        // Assistant Typing & Response
+        setTimeout(() => {
+          const assistantDiv = document.createElement("div");
+          assistantDiv.className = "flex items-start gap-3";
+          assistantDiv.innerHTML = `
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shrink-0 mt-0.5 shadow-md shadow-indigo-600/30">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+          </div>
+          <div class="flex-1 bg-[#121215] border border-[rgba(255,255,255,0.06)] rounded-2xl p-4 text-sm text-[#e4e4e7] space-y-3 shadow-lg">
+            <div class="flex items-center justify-between text-xs text-[#71717a] border-b border-[rgba(255,255,255,0.04)] pb-2">
+              <span class="flex items-center gap-1.5 text-indigo-400 font-medium">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                <span>Generated by ${currentModelName.innerText}</span>
+              </span>
+              <span class="font-mono text-[10px]">142 tokens • 0.38s</span>
+            </div>
+            <div class="leading-relaxed">
+              I have initialized the component based on your request: <strong>"${userText}"</strong>. Here is the architecture and immediate code structure:
+            </div>
+            <div class="bg-[#09090b] rounded-xl p-3 border border-[rgba(255,255,255,0.05)] font-mono text-xs text-indigo-300">
+              <pre><code>// Pure Web Canvas Harmonic Fluid System
+const renderHarmonicWave = (ctx, t) => {
+  const theta = (t * Math.PI) / 180;
+  return Math.sin(theta * 2.5) * Math.cos(theta * 1.5) * 16;
+};</code></pre>
+            </div>
+            <div class="flex items-center gap-2 pt-1 text-xs text-[#71717a]">
+              <button class="hover:text-white flex items-center gap-1 transition"><i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy</button>
+              <button class="hover:text-white flex items-center gap-1 transition"><i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i></button>
+              <button class="hover:text-white flex items-center gap-1 transition"><i data-lucide="thumbs-down" class="w-3.5 h-3.5"></i></button>
+            </div>
+          </div>
+        `;
+          chatStream.appendChild(assistantDiv);
+          lucide.createIcons();
+          messagesViewport.scrollTop = messagesViewport.scrollHeight;
+        }, 500);
+      }
+
+      submitBtn.addEventListener("click", () => handleSend(chatTextarea.value.trim()));
+      chatTextarea.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          handleSend(chatTextarea.value.trim());
+        }
+      });
+
+      promptChips.forEach((chip) => {
+        chip.addEventListener("click", () => handleSend(chip.getAttribute("data-prompt")));
+      });
+
+      // Voice Mode Controls & Canvas Visualizer
+      let voiceActive = false;
+      let voiceMode = "listening"; // 'listening' | 'thinking' | 'speaking'
+      let isMicMuted = false;
+
+      function openVoice() {
+        voiceActive = true;
+        voiceOverlay.classList.remove("opacity-0", "pointer-events-none", "scale-95");
+        voiceOverlay.classList.add("opacity-100", "scale-100");
+        setVoiceState("listening");
+      }
+
+      function closeVoice() {
+        voiceActive = false;
+        voiceOverlay.classList.remove("opacity-100", "scale-100");
+        voiceOverlay.classList.add("opacity-0", "pointer-events-none", "scale-95");
+      }
+
+      openVoiceModal.addEventListener("click", openVoice);
+      closeVoiceModal.addEventListener("click", closeVoice);
+      endCallBtn.addEventListener("click", closeVoice);
+
+      function setVoiceState(state) {
+        voiceMode = state;
+        [btnListening, btnThinking, btnSpeaking].forEach(
+          (b) =>
+            (b.className =
+              "px-3 py-1 rounded-full text-xs font-medium text-[#71717a] hover:text-white transition"),
+        );
+
+        if (state === "listening") {
+          btnListening.className =
+            "px-3 py-1 rounded-full text-xs font-medium bg-indigo-600 text-white transition";
+          voiceStatus.innerText = "Live Acoustic Channel • Listening";
+          voiceTranscript.innerText = '"I\'m listening. Say anything..."';
+        } else if (state === "thinking") {
+          btnThinking.className =
+            "px-3 py-1 rounded-full text-xs font-medium bg-purple-600 text-white transition";
+          voiceStatus.innerText = "Neural Engine • Processing Tokens";
+          voiceTranscript.innerText = '"Synthesizing solution..."';
+        } else {
+          btnSpeaking.className =
+            "px-3 py-1 rounded-full text-xs font-medium bg-emerald-600 text-white transition";
+          voiceStatus.innerText = "Voice Synthesis • Speaking";
+          voiceTranscript.innerText = '"Here is the result tailored to your project."';
+        }
+      }
+
+      btnListening.addEventListener("click", () => setVoiceState("listening"));
+      btnThinking.addEventListener("click", () => setVoiceState("thinking"));
+      btnSpeaking.addEventListener("click", () => setVoiceState("speaking"));
+
+      voiceMicBtn.addEventListener("click", () => {
+        isMicMuted = !isMicMuted;
+        if (isMicMuted) {
+          voiceMicIcon.setAttribute("data-lucide", "mic-off");
+          voiceMicBtn.classList.replace("bg-indigo-600", "bg-rose-600");
+          voiceStatus.innerText = "Microphone Muted";
+        } else {
+          voiceMicIcon.setAttribute("data-lucide", "mic");
+          voiceMicBtn.classList.replace("bg-rose-600", "bg-indigo-600");
+          setVoiceState(voiceMode);
+        }
+        lucide.createIcons();
+      });
+
+      // Harmonic Fluid Orb Renderer
+      let orbAngle = 0;
+      const cx = voiceCanvas.width / 2;
+      const cy = voiceCanvas.height / 2;
+      const orbBaseRadius = 115;
+
+      function renderVoiceVisualizer() {
+        ctx.clearRect(0, 0, voiceCanvas.width, voiceCanvas.height);
+
+        if (voiceActive) {
+          orbAngle += voiceMode === "speaking" ? 0.045 : voiceMode === "thinking" ? 0.03 : 0.015;
+        }
+
+        let c1 = "rgba(99, 102, 241, 0.85)";
+        let c2 = "rgba(168, 85, 247, 0.7)";
+        let deform = isMicMuted ? 4 : 14;
+
+        if (voiceMode === "thinking") {
+          c1 = "rgba(168, 85, 247, 0.85)";
+          c2 = "rgba(236, 72, 153, 0.7)";
+          deform = 8;
+        } else if (voiceMode === "speaking") {
+          c1 = "rgba(16, 185, 129, 0.9)";
+          c2 = "rgba(56, 189, 248, 0.8)";
+          deform = 22;
+        }
+
+        for (let layer = 3; layer >= 1; layer--) {
+          ctx.beginPath();
+          const layerRadius = orbBaseRadius + layer * 7;
+          const totalPoints = 48;
+
+          for (let i = 0; i <= totalPoints; i++) {
+            const theta = (i / totalPoints) * Math.PI * 2;
+            const noise =
+              Math.sin(theta * 3 + orbAngle * 2 + layer) * Math.cos(theta * 2 - orbAngle) * deform;
+            const r = layerRadius + noise;
+            const x = cx + Math.cos(theta) * r;
+            const y = cy + Math.sin(theta) * r;
+
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+
+          const grad = ctx.createRadialGradient(cx - 30, cy - 30, 15, cx, cy, layerRadius + deform);
+          grad.addColorStop(0, c2);
+          grad.addColorStop(0.5, c1);
+          grad.addColorStop(1, "rgba(0,0,0,0)");
+
+          ctx.fillStyle = grad;
+          ctx.shadowColor = c1;
+          ctx.shadowBlur = layer * 20;
+          ctx.fill();
+        }
+
+        requestAnimationFrame(renderVoiceVisualizer);
+      }
+      renderVoiceVisualizer();
+    </script>
+  </body>
+</html>
