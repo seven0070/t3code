@@ -253,6 +253,7 @@ import { ComposerPrimaryActions } from "./ComposerPrimaryActions";
 import { ComposerPendingApprovalPanel } from "./ComposerPendingApprovalPanel";
 import { ComposerPendingUserInputPanel } from "./ComposerPendingUserInputPanel";
 import { ComposerPlanFollowUpBanner } from "./ComposerPlanFollowUpBanner";
+import { JarvisVoiceControl } from "./JarvisVoiceControl";
 import {
   ComposerControl,
   ComposerControlIcon,
@@ -5098,6 +5099,15 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           onProviderModelSelect(instanceId, model);
         }}
         onOpenProviderSetup={onOpenProviderSetup}
+      />
+
+      <JarvisVoiceControl
+        size={composerControlsInStrip ? "xs" : "sm"}
+        onAppendTranscript={(text) => {
+          const current = promptRef.current;
+          const next = current ? current + " " + text : text;
+          replacePromptFromHistory(next);
+        }}
       />
 
       <>

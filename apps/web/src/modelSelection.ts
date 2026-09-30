@@ -58,7 +58,7 @@ function readInstanceCustomModels(
   instanceId: ProviderInstanceId,
   driverKind: ProviderDriverKind,
 ): ReadonlyArray<CustomModelDefinition> {
-  if (driverKind === "antigravity") return [];
+  if (driverKind === "antigravity" || driverKind === "openhuman") return [];
   const instance = settings.providerInstances?.[instanceId];
   const config = instance?.config;
   if (config !== null && typeof config === "object") {
@@ -71,9 +71,9 @@ function readInstanceCustomModels(
   if (instanceId !== defaultInstanceId) {
     return [];
   }
-  const legacyProviders = settings.providers as Record<
+  const legacyProviders = settings.providers as unknown as Record<
     string,
-    { readonly customModels: ReadonlyArray<unknown> } | undefined
+    { readonly customModels?: ReadonlyArray<unknown> } | undefined
   >;
   return readCustomModelEntries(legacyProviders[driverKind]?.customModels ?? []);
 }

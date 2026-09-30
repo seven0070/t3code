@@ -5,6 +5,7 @@ import {
   CursorSettings,
   GrokSettings,
   OpenCodeSettings,
+  OpenHumanSettings,
   ProviderDriverKind,
 } from "@t3tools/contracts";
 import type * as Schema from "effect/Schema";
@@ -16,6 +17,7 @@ import {
   type Icon,
   OpenAI,
   OpenCodeIcon,
+  OpenHumanIcon,
 } from "../Icons";
 
 type ProviderSettingsSchema = {
@@ -81,6 +83,13 @@ const PROVIDER_CLIENT_DEFINITIONS: readonly ProviderClientDefinition[] = [
     label: "Antigravity",
     icon: AntigravityIcon,
     settingsSchema: AntigravitySettings,
+  },
+  {
+    value: ProviderDriverKind.make("openhuman"),
+    label: "OpenHuman (J.A.R.V.I.S.)",
+    icon: OpenHumanIcon,
+    badgeLabel: "Voice AI",
+    settingsSchema: OpenHumanSettings,
   },
 ];
 

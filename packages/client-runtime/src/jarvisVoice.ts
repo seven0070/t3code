@@ -58,7 +58,8 @@ export function speakJarvis(text: string): void {
 
 export function isSpeechRecognitionSupported(): boolean {
   if (typeof window === "undefined") return false;
-  return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const win = window as any;
+  return Boolean(win.SpeechRecognition || win.webkitSpeechRecognition);
 }
 
 export interface VoiceListenerOptions {
@@ -80,7 +81,8 @@ export function createJarvisVoiceListener(options: VoiceListenerOptions): Jarvis
   let recognition: any = null;
 
   if (typeof window !== "undefined") {
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const win = window as any;
+    const SpeechRec = win.SpeechRecognition || win.webkitSpeechRecognition;
     if (SpeechRec) {
       recognition = new SpeechRec();
       recognition.continuous = options.continuous ?? false;
