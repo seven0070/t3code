@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./jarvisVoice": {
+      "types": "./src/jarvisVoice.ts",
+      "default": "./src/jarvisVoice.ts"
+    },
     "./device/stream": {
       "types": "./src/device/stream.ts",
       "default": "./src/device/stream.ts"

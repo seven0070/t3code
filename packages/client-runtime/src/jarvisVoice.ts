@@ -56,15 +56,88 @@ export function speakJarvis(text: string): void {
   window.speechSynthesis.speak(utterance);
 }
 
-export function playJarvisAudioStream(audioUrl: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") {
-      resolve();
-      return;
+export function isSpeechRecognitionSupported(): boolean {
+  if (typeof window === "undefined") return false;
+  return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+export interface VoiceListenerOptions {
+  onTranscript: (text: string, isFinal: boolean) => void;
+  onError?: (error: unknown) => void;
+  onEnd?: () => void;
+  lang?: string;
+  continuous?: boolean;
+}
+
+export interface JarvisVoiceController {
+  start: () => void;
+  stop: () => void;
+  isListening: () => boolean;
+}
+
+export function createJarvisVoiceListener(options: VoiceListenerOptions): JarvisVoiceController {
+  let active = false;
+  let recognition: any = null;
+
+  if (typeof window !== "undefined") {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRec) {
+      recognition = new SpeechRec();
+      recognition.continuous = options.continuous ?? false;
+      recognition.interimResults = true;
+      recognition.lang = options.lang ?? "en-US";
+
+      recognition.onresult = (event: any) => {
+        let interimTranscript = "";
+        let finalTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          options.onTranscript(finalTranscript.trim(), true);
+        } else if (interimTranscript) {
+          options.onTranscript(interimTranscript.trim(), false);
+        }
+      };
+
+      recognition.onerror = (e: any) => {
+        active = false;
+        options.onError?.(e);
+      };
+
+      recognition.onend = () => {
+        active = false;
+        options.onEnd?.();
+      };
     }
-    const audio = new Audio(audioUrl);
-    audio.onended = () => resolve();
-    audio.onerror = (e) => reject(e);
-    audio.play().catch(reject);
-  });
+  }
+
+  return {
+    start: () => {
+      if (!recognition) return;
+      try {
+        active = true;
+        recognition.start();
+      } catch {
+        // Recognition might already be running
+      }
+    },
+    stop: () => {
+      if (!recognition) return;
+      active = false;
+      try {
+        recognition.stop();
+      } catch {
+        // Ignore
+      }
+    },
+    isListening: () => active,
+  };
 }
