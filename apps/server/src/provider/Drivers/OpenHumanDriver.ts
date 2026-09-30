@@ -27,8 +27,8 @@ import {
 } from "../ProviderDriver.ts";
 
 export const OpenHumanConfig = Schema.Struct({
-  enabled: Schema.optionalWith(Schema.Boolean, { default: () => true }),
-  serverUrl: Schema.optionalWith(Schema.String, { default: () => "http://127.0.0.1:8899" }),
+  enabled: Schema.optional(Schema.Boolean),
+  serverUrl: Schema.optional(Schema.String),
 });
 export type OpenHumanConfig = typeof OpenHumanConfig.Type;
 
@@ -46,18 +46,20 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
   create: ({ instanceId, displayName, accentColor, enabled, config }) =>
     Effect.gen(function* () {
       const httpClient = yield* HttpClient.HttpClient;
+      const serverUrl = config.serverUrl ?? "http://127.0.0.1:8899";
       const continuationIdentity = defaultProviderContinuationIdentity({
         driverKind: DRIVER_KIND,
         instanceId,
       });
 
       const events = yield* PubSub.unbounded<ProviderRuntimeEvent>();
-      const emit = (event: ProviderRuntimeEvent) => PubSub.publish(events, event).pipe(Effect.asVoid);
+      const emit = (event: ProviderRuntimeEvent) =>
+        PubSub.publish(events, event).pipe(Effect.asVoid);
 
       // Proactive poller: forwards autonomous alerts from OpenHuman scheduler to T3 clients
       if (enabled) {
         yield* Effect.gen(function* () {
-          const req = HttpClientRequest.get(`${config.serverUrl}/events`).pipe(
+          const req = HttpClientRequest.get(`${serverUrl}/events`).pipe(
             HttpClientRequest.setHeader("accept", "application/json"),
           );
           const res = yield* httpClient.execute(req).pipe(
@@ -73,24 +75,21 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
                   provider: DRIVER_KIND,
                   createdAt: new Date().toISOString(),
                   type: "warning",
-                  payload: { message: `[J.A.R.V.I.S.] ${item.message ?? "Proactive system alert"}` },
+                  payload: {
+                    message: `[J.A.R.V.I.S.] ${item.message ?? "Proactive system alert"}`,
+                  },
                 } as unknown as ProviderRuntimeEvent);
               }
             }
           }
-        }).pipe(
-          Effect.repeat({ schedule: Schedule.spaced("5 seconds") }),
-          Effect.forkScoped,
-        );
+        }).pipe(Effect.repeat({ schedule: Schedule.spaced("5 seconds") }), Effect.forkScoped);
       }
 
-      const probeDaemon = httpClient
-        .execute(HttpClientRequest.get(`${config.serverUrl}/health`))
-        .pipe(
-          Effect.timeoutOption("2 seconds"),
-          Effect.map((res) => Option.isSome(res) && res.value.status < 400),
-          Effect.orElseSucceed(() => false),
-        );
+      const probeDaemon = httpClient.execute(HttpClientRequest.get(`${serverUrl}/health`)).pipe(
+        Effect.timeoutOption("2 seconds"),
+        Effect.map((res) => Option.isSome(res) && res.value.status < 400),
+        Effect.orElseSucceed(() => false),
+      );
 
       const getSnapshot = Effect.gen(function* () {
         const isOnline = enabled ? yield* probeDaemon : false;
@@ -122,7 +121,7 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
               status: enabled ? (isOnline ? "ready" : "unauthenticated") : "disabled",
               auth: { type: "local" },
               message: isOnline
-                ? `Connected to OpenHuman at ${config.serverUrl}`
+                ? `Connected to OpenHuman at ${serverUrl}`
                 : `OpenHuman daemon offline. Run openhuman with jarvis.config.toml (port 8899).`,
             },
           }),
@@ -157,7 +156,7 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
                 prompt: input.prompt,
               },
             });
-            const req = HttpClientRequest.post(`${config.serverUrl}/rpc`).pipe(
+            const req = HttpClientRequest.post(`${serverUrl}/rpc`).pipe(
               HttpClientRequest.setHeader("content-type", "application/json"),
               HttpClientRequest.bodyText(body),
             );
@@ -178,7 +177,7 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
                 new ProviderAdapterError({
                   provider: DRIVER_KIND,
                   operation: "sendTurn",
-                  detail: `OpenHuman at ${config.serverUrl} timed out. Ensure the daemon is running.`,
+                  detail: `OpenHuman at ${serverUrl} timed out. Ensure the daemon is running.`,
                 }),
               );
             }
