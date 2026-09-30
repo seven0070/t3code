@@ -1,13 +1,18 @@
 import {
+  EventId,
   type ModelSelection,
   ProviderDriverKind,
+  type ProviderRuntimeEvent,
   type ServerProvider,
   TextGenerationError,
   TurnId,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import * as PubSub from "effect/PubSub";
+import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
+import * as Stream from "effect/Stream";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { ProviderAdapterError } from "../Errors.ts";
@@ -42,6 +47,39 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
         driverKind: DRIVER_KIND,
         instanceId,
       });
+
+      const events = yield* PubSub.unbounded<ProviderRuntimeEvent>();
+      const emit = (event: ProviderRuntimeEvent) => PubSub.publish(events, event).pipe(Effect.asVoid);
+
+      // Proactive poller: forwards autonomous alerts from OpenHuman scheduler to T3 clients
+      if (enabled) {
+        yield* Effect.gen(function* () {
+          const req = HttpClientRequest.get(`${config.serverUrl}/events`).pipe(
+            HttpClientRequest.setHeader("accept", "application/json"),
+          );
+          const res = yield* httpClient.execute(req).pipe(
+            Effect.timeoutOption("3 seconds"),
+            Effect.orElseSucceed(() => Option.none()),
+          );
+          if (Option.isSome(res) && res.value.status === 200) {
+            const raw = yield* res.value.json.pipe(Effect.orElseSucceed(() => []));
+            if (Array.isArray(raw)) {
+              for (const item of raw) {
+                yield* emit({
+                  eventId: EventId.make(`evt-${Date.now()}`),
+                  provider: DRIVER_KIND,
+                  createdAt: new Date().toISOString(),
+                  type: "warning",
+                  payload: { message: `[J.A.R.V.I.S.] ${item.message ?? "Proactive system alert"}` },
+                } as unknown as ProviderRuntimeEvent);
+              }
+            }
+          }
+        }).pipe(
+          Effect.repeat({ schedule: Schedule.spaced("5 seconds") }),
+          Effect.forkScoped,
+        );
+      }
 
       const probeDaemon = httpClient
         .execute(HttpClientRequest.get(`${config.serverUrl}/health`))
@@ -96,6 +134,7 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
       const adapter = {
         provider: DRIVER_KIND,
         capabilities: { sessionModelSwitch: "unsupported" as const },
+        streamEvents: Stream.fromPubSub(events),
         startSession: (input: { sessionId: string; modelSelection?: ModelSelection }) =>
           Effect.succeed({
             sessionId: input.sessionId,
@@ -140,6 +179,14 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
                 }),
               );
             }
+
+            yield* emit({
+              eventId: EventId.make(`evt-${Date.now()}`),
+              provider: DRIVER_KIND,
+              createdAt: new Date().toISOString(),
+              type: "turn.started",
+              payload: { threadId: input.threadId, turnId },
+            } as unknown as ProviderRuntimeEvent);
 
             return { turnId };
           }),
