@@ -8,7 +8,9 @@ import {
   TurnId,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
+import * as Path from "effect/Path";
 import * as PubSub from "effect/PubSub";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
@@ -16,6 +18,7 @@ import * as Stream from "effect/Stream";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { ProviderAdapterError } from "../Errors.ts";
+import { recordEvolutionSkill } from "../Layers/OpenHumanEvolution.ts";
 import { buildServerProvider } from "../providerSnapshot.ts";
 import {
   defaultProviderContinuationIdentity,
@@ -31,7 +34,7 @@ export type OpenHumanConfig = typeof OpenHumanConfig.Type;
 
 export const DRIVER_KIND = ProviderDriverKind.make("openhuman");
 
-export type OpenHumanDriverEnv = HttpClient.HttpClient;
+export type OpenHumanDriverEnv = HttpClient.HttpClient | FileSystem.FileSystem | Path.Path;
 
 export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv> = {
   driverKind: DRIVER_KIND,
@@ -187,6 +190,23 @@ export const OpenHumanDriver: ProviderDriver<OpenHumanConfig, OpenHumanDriverEnv
               type: "turn.started",
               payload: { threadId: input.threadId, turnId },
             } as unknown as ProviderRuntimeEvent);
+
+            // Phase 4: Self-Evolution Hook (Persist newly learned skills)
+            const res = response.value;
+            if (res.status === 200) {
+              const resJson = (yield* res.json.pipe(Effect.orElseSucceed(() => null))) as {
+                result?: { newSkill?: { name: string; description?: string; content: string } };
+              } | null;
+              if (resJson?.result?.newSkill) {
+                const s = resJson.result.newSkill;
+                yield* recordEvolutionSkill({
+                  workspaceCwd: process.cwd(),
+                  name: s.name,
+                  description: s.description ?? "Self-evolved tool synthesized by J.A.R.V.I.S.",
+                  content: s.content,
+                }).pipe(Effect.orElseSucceed(() => ""));
+              }
+            }
 
             return { turnId };
           }),
